@@ -1,0 +1,13 @@
+# Video production assets and script drafts (not part of the code samples)
+etc/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Generated at runtime by the ContextOffloader demo
+artifacts/
+
+# macOS
+.DS_Store
