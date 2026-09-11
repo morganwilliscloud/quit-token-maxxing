@@ -1,11 +1,22 @@
 """DEMO 1: Summarization — compress older history, keep recent history intact."""
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["strands-agents==1.55.1"]
+# ///
 from strands import Agent
-from strands.agent.conversation_manager import SummarizingConversationManager
+from strands.experimental.context_manager import ContextManager, Offload
 
+# Tip: context_manager="auto" gives you opinionated defaults with zero config.
+# Here we configure it explicitly so you can see what each knob does.
 agent = Agent(
-    conversation_manager=SummarizingConversationManager(
-        summary_ratio=0.3,            # summarize the oldest 30% when compaction runs
-        preserve_recent_messages=10,  # the 10 most recent messages are never touched
+    context_manager=ContextManager(
+        strategies=[
+            # When the context window hits 85% utilization, summarize the
+            # oldest messages into a single summary message.
+            # The 2 most recent matching messages are never touched.
+            Offload.summarize("*").when(utilization=0.85, preserve_recent=2),
+        ],
+        stash=False, 
     ),
     system_prompt="You are a research assistant.",
 )

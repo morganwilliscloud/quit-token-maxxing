@@ -1,4 +1,8 @@
 """DEMO 4: Subagents — the agent-as-a-tool pattern for context isolation."""
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["strands-agents==1.55.1"]
+# ///
 
 import datetime
 import random

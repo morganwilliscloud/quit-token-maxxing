@@ -2,35 +2,47 @@
 
 Builds on Demos 1+2 by adding skills alongside summarization and offloading.
 """
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["strands-agents==1.55.1"]
+# ///
 
 from pathlib import Path
 
 from strands import Agent, AgentSkills
-from strands.agent.conversation_manager import SummarizingConversationManager
-from strands.vended_plugins.context_offloader import ContextOffloader, FileStorage
-from strands_tools import editor, file_read, file_write, shell
+
+# NOTE: will move to top-level `from strands import ContextManager, Offload` in a future release.
+from strands.experimental.context_manager import ContextManager, Offload
+from strands.storage import LocalFileStorage
+from strands.vended_tools import file_editor, shell
 
 SKILLS_DIR = Path(__file__).parent / "skills"
 
 # All three techniques stacked:
 # - Summarization keeps overall conversation history compact
-# - Offloading handles big tool results (e.g. file reads)
-# - Skills load specialized instructions only when needed
+# - Offloading handles big tool results (e.g. large file reads)
+# - Skills load specialized instructions only when the task calls for them
 agent = Agent(
-    conversation_manager=SummarizingConversationManager(
-        summary_ratio=0.3,
-        preserve_recent_messages=10,
+    context_manager=ContextManager(
+        strategies=[
+            # Big tool results get offloaded; a 500-token preview stays in context.
+            Offload.truncate(
+                "tool_results",
+                {"preview_tokens": 500},
+            ).when(threshold=2500),
+            # Compact older messages once the window is 85% full.
+            Offload.summarize("*").when(utilization=0.85, preserve_recent=2),
+        ],
+        # Stash keeps originals on disk and gives the agent a retrieval tool.
+        stash={
+            "storage": LocalFileStorage("./artifacts/"),
+            "retrieval_tool": True,
+        },
     ),
     plugins=[
-        ContextOffloader(
-            storage=FileStorage("./artifacts/"),
-            max_result_tokens=2_500,
-            preview_tokens=500,
-            include_retrieval_tool=True,
-        ),
         AgentSkills(skills=str(SKILLS_DIR)),
     ],
-    tools=[editor, file_read, file_write, shell],
+    tools=[file_editor, shell],
     system_prompt=(
         "You are an engineering assistant. Activate the relevant skill "
         "before starting a specialized task."
